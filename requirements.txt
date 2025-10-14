@@ -3,6 +3,7 @@ anyio==4.11.0
 backports.asyncio.runner==1.2.0
 certifi==2025.10.5
 click==8.3.0
+coverage==7.10.7
 dnspython==2.8.0
 email-validator==2.3.0
 exceptiongroup==1.3.0
@@ -22,6 +23,7 @@ pydantic_core==2.41.1
 Pygments==2.19.2
 pytest==8.4.2
 pytest-asyncio==1.2.0
+pytest-cov==7.0.0
 python-dotenv==1.1.1
 PyYAML==6.0.3
 sniffio==1.3.1
