@@ -23,3 +23,30 @@ async def asgi_client(app_with_tmp_db):
     transport = ASGITransport(app=app_with_tmp_db)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+import pytest
+import random
+import string
+
+def _rand_email():
+    token = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    return f"u_{token}@example.com"
+
+@pytest.fixture
+def user_factory(client):
+    created = []
+    def _make():
+        payload = {"email": _rand_email(), "name": "Test User"}
+        r = client.post("/api/users/", json=payload)
+        assert r.status_code == 201, r.text
+        data = r.json()
+        created.append(data)
+        return data
+    return _make
+# --- sync httpx client over ASGITransport, using the temp DB app fixture ---
+import pytest
+from starlette.testclient import TestClient
+
+@pytest.fixture
+def client(app_with_tmp_db):
+    with TestClient(app_with_tmp_db, base_url="http://testserver") as c:
+        yield c
