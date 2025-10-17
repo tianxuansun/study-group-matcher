@@ -12,10 +12,11 @@ router = APIRouter()
 @router.get("/", response_model=List[UserRead])
 def list_users(
     offset: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(100, ge=1, le=100),   # was 20 -> now 100
     db: Session = Depends(get_db),
 ):
     return user_crud.get_multi(db, skip=offset, limit=limit)
+
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: Session = Depends(get_db)):
