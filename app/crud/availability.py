@@ -39,3 +39,11 @@ def remove(db: Session, availability_id: int) -> None:
     if obj:
         db.delete(obj)
         db.commit()
+def get_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    return (
+        db.query(Availability)
+        .filter(Availability.user_id == user_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
