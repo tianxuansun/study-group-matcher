@@ -1,17 +1,35 @@
 from pydantic import BaseModel, Field
-from typing import Optional
 
-class GroupBase(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    course_id: Optional[int] = None
+class GroupRead(BaseModel):
+    id: int
+    name: str
+    course_id: int | None = None
 
-class GroupCreate(GroupBase):
-    pass
+    model_config = {"from_attributes": True}
+
+class GroupCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=128)
+    course_id: int | None = None
+
+    # OpenAPI examples
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"name": "Study Group A", "course_id": None},
+                {"name": "EC523-Group-1", "course_id": 1},
+            ]
+        }
+    }
 
 class GroupUpdate(BaseModel):
-    name: Optional[str] = None
-    course_id: Optional[int] = None
+    name: str | None = Field(None, min_length=1, max_length=128)
+    course_id: int | None = None
 
-class GroupRead(GroupBase):
-    id: int
-    model_config = {"from_attributes": True}
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"name": "Renamed Group"},
+                {"course_id": 2},
+            ]
+        }
+    }
