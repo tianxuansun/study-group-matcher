@@ -10,7 +10,9 @@ def get_by_email(db: Session, email: str) -> User | None:
     return db.scalar(select(User).where(User.email == email.lower()))
 
 def get_multi(db: Session, skip: int = 0, limit: int = 50) -> list[User]:
-    return db.scalars(select(User).offset(skip).limit(limit)).all()
+    stmt = select(User).order_by(User.id.asc()).offset(skip).limit(limit)
+    return db.scalars(stmt).all()
+
 
 def create(db: Session, obj_in: UserCreate) -> User:
     email = obj_in.email.lower()

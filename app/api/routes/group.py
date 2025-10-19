@@ -1,0 +1,54 @@
+from typing import List
+from fastapi import APIRouter, Depends, status, Query
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_db
+from app.api.errors import not_found, conflict
+from app.schemas.group import GroupCreate, GroupUpdate, GroupRead
+from app.crud import group as group_crud
+
+router = APIRouter()
+
+@router.get("/", response_model=List[GroupRead])
+def list_groups(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return group_crud.get_multi(db, skip=offset, limit=limit)
+
+@router.post("/", response_model=GroupRead, status_code=status.HTTP_201_CREATED)
+def create_group(payload: GroupCreate, db: Session = Depends(get_db)):
+    try:
+        return group_crud.create(db, payload)
+    except ValueError as e:
+        if str(e) == "course_not_found":
+            not_found("Course not found.")
+        raise
+
+@router.get("/{group_id}", response_model=GroupRead)
+def get_group(group_id: int, db: Session = Depends(get_db)):
+    obj = group_crud.get(db, group_id)
+    if not obj:
+        not_found("Group not found.")
+    return obj
+
+@router.patch("/{group_id}", response_model=GroupRead)
+def update_group(group_id: int, payload: GroupUpdate, db: Session = Depends(get_db)):
+    obj = group_crud.get(db, group_id)
+    if not obj:
+        not_found("Group not found.")
+    try:
+        return group_crud.update(db, db_obj=obj, obj_in=payload)
+    except ValueError as e:
+        if str(e) == "course_not_found":
+            not_found("Course not found.")
+        raise
+
+@router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_group(group_id: int, db: Session = Depends(get_db)):
+    obj = group_crud.get(db, group_id)
+    if not obj:
+        not_found("Group not found.")
+    group_crud.remove(db, group_id)
+    return
