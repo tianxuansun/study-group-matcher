@@ -116,17 +116,31 @@ def preview_plan(db: Session, params: MatchInput) -> MatchPlan:
         },
     )
 
+# add near the other imports at top (select is already imported in your file; keep one import)
+from sqlalchemy import select
+
+# NEW helper: pick the next free "Auto Group N"
+def _next_group_name(db: Session, base: str = "Auto Group") -> str:
+    # grab all existing names that start with the base
+    existing = set(db.scalars(select(Group.name).where(Group.name.like(f"{base}%"))).all())
+    n = 1
+    while True:
+        candidate = f"{base} {n}"
+        if candidate not in existing:
+            return candidate
+        n += 1
+
 def apply_plan(db: Session, plan: MatchPlan, course_id: Optional[int]) -> List[int]:
     """
     Creates Group + Memberships. Returns created group IDs.
     """
     created_ids: List[int] = []
-    counter = 1
     for mg in plan.groups:
-        name = f"Auto Group {counter}"
-        grp = group_crud.create(db, obj_in=type("X",(object,),{"name":name,"course_id":course_id})())
+        # pick a unique name each time to satisfy UNIQUE(groups.name)
+        name = _next_group_name(db, base="Auto Group")
+        grp = group_crud.create(db, obj_in=type("X",(object,),{"name": name, "course_id": course_id})())
         created_ids.append(grp.id)
         for uid in mg.user_ids:
-            membership_crud.create(db, obj_in=type("Y",(object,),{"user_id":uid,"group_id":grp.id})())
-        counter += 1
+            membership_crud.create(db, obj_in=type("Y",(object,),{"user_id": uid, "group_id": grp.id})())
     return created_ids
+
