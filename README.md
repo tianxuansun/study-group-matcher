@@ -42,3 +42,24 @@ Two endpoints:
 
 **Algorithm (v1):** greedy bin-packing by common availability slots. Deterministic ordering (sort by user id), ensures each group has a common slot of at least `min_overlap_minutes` on the same weekday.
 **Grouping rule:** the matcher creates only full groups of the requested `group_size`. Any remaining users that cannot form a full group are returned in `leftovers`.
+## Enrollments
+
+- `POST /api/enrollments/`  
+  Body: `{"user_id": 1, "course_id": 2}`  
+  Creates the enrollment (409 if duplicate, 404 if user/course not found).
+
+- `GET /api/enrollments/?user_id=...` or `?course_id=...`  
+  Lists enrollments with `X-Total-Count` header. Supports `limit`/`offset` (default limit 20, max 100).
+
+- `DELETE /api/enrollments/{user_id}/{course_id}`  
+  Removes an enrollment (404 if not found).
+
+## Matching by course
+
+- `POST /api/matching/preview/by-course/{course_id}/`  
+  Body: `{"group_size": 4, "min_overlap_minutes": 60}`  
+  Returns a plan based on the current roster for that course.
+
+- `POST /api/matching/apply/by-course/{course_id}/`  
+  Same body; creates `Group`(s) (named "Auto Group N") + `Membership`(s).  
+  Only **full groups** are created; partial groups are returned in `leftovers`.

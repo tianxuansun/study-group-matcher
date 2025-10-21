@@ -32,3 +32,15 @@ class MatchPlan(BaseModel):
     groups: List[MatchGroup]
     leftovers: List[int]  # users we couldn't place
     params: Dict[str, int | None]
+class MatchCourseInput(BaseModel):
+    group_size: int = Field(4, ge=2, le=10)
+    min_overlap_minutes: int = Field(60, ge=15, le=600)
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "group_size": 4,
+                "min_overlap_minutes": 60
+            }]
+        }
+    }
