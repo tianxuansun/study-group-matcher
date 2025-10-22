@@ -76,6 +76,7 @@ def preview_plan(db: Session, params: MatchInput) -> MatchPlan:
       - iterate user_ids in sorted order for determinism
       - start a group, keep adding next user that preserves a valid common slot
       - finalize group once size reached; continue
+      - optionally allow a final partial group (>=2) if allow_partial_last_group=True
     """
     avail = _load_availabilities(db, params.user_ids)
     pool = sorted(params.user_ids)
@@ -100,8 +101,10 @@ def preview_plan(db: Session, params: MatchInput) -> MatchPlan:
             else:
                 i += 1
 
-        # accept group only if we found a viable slot and reached the target size
-        if slot and len(cur) == params.group_size:
+        # Accept a group if:
+        # - we found a viable slot AND
+        # - (size == target) OR (allow_partial_last_group and size >= 2)
+        if slot and (len(cur) == params.group_size or (params.allow_partial_last_group and len(cur) >= 2)):
             groups.append(MatchGroup(user_ids=cur, slot=slot))
         else:
             leftovers.extend(cur)
@@ -113,8 +116,11 @@ def preview_plan(db: Session, params: MatchInput) -> MatchPlan:
             "group_size": params.group_size,
             "min_overlap_minutes": params.min_overlap_minutes,
             "course_id": params.course_id if params.course_id is not None else 0,
+            "allow_partial_last_group": params.allow_partial_last_group,
+            "name_prefix": params.name_prefix or "Auto Group",
         },
     )
+
 
 # add near the other imports at top (select is already imported in your file; keep one import)
 from sqlalchemy import select
@@ -130,17 +136,23 @@ def _next_group_name(db: Session, base: str = "Auto Group") -> str:
             return candidate
         n += 1
 
-def apply_plan(db: Session, plan: MatchPlan, course_id: Optional[int]) -> List[int]:
+def apply_plan(
+    db: Session,
+    plan: MatchPlan,
+    course_id: Optional[int],
+    name_prefix: Optional[str] = None,
+) -> List[int]:
     """
     Creates Group + Memberships. Returns created group IDs.
     """
     created_ids: List[int] = []
+    base = name_prefix or plan.params.get("name_prefix") or "Auto Group"
+
     for mg in plan.groups:
         # pick a unique name each time to satisfy UNIQUE(groups.name)
-        name = _next_group_name(db, base="Auto Group")
+        name = _next_group_name(db, base=base)
         grp = group_crud.create(db, obj_in=type("X",(object,),{"name": name, "course_id": course_id})())
         created_ids.append(grp.id)
         for uid in mg.user_ids:
             membership_crud.create(db, obj_in=type("Y",(object,),{"user_id": uid, "group_id": grp.id})())
     return created_ids
-
