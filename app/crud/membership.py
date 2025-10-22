@@ -8,9 +8,15 @@ from app.schemas.membership import MembershipCreate, MembershipUpdate
 def get(db: Session, id: int) -> Membership | None:
     return db.get(Membership, id)
 
-def get_multi(db: Session, skip: int = 0, limit: int = 100) -> list[Membership]:
-    stmt = select(Membership).order_by(Membership.id.asc()).offset(skip).limit(limit)
+def get_multi(db: Session, skip: int = 0, limit: int = 50) -> list[Membership]:
+    stmt = (
+        select(Membership)
+        .order_by(Membership.id.desc())   # NEW: newest first so page 1 includes latest
+        .offset(skip)
+        .limit(limit)
+    )
     return db.scalars(stmt).all()
+
 
 def get_by_user_group(db: Session, user_id: int, group_id: int) -> Membership | None:
     stmt = select(Membership).where(and_(Membership.user_id == user_id, Membership.group_id == group_id))
