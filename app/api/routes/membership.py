@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, status, Query
+from fastapi import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -16,10 +17,13 @@ def list_memberships(
     user_id: int | None = Query(None, ge=1),
     group_id: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
+    response: Response = None,  # NEW
 ):
+    total = membership_crud.count(db, user_id=user_id, group_id=group_id)
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
     return membership_crud.get_multi(db, skip=offset, limit=limit, user_id=user_id, group_id=group_id)
-
-
+    
 @router.post("/", response_model=MembershipRead, status_code=status.HTTP_201_CREATED)
 def create_membership(payload: MembershipCreate, db: Session = Depends(get_db)):
     try:
