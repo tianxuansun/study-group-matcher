@@ -70,6 +70,7 @@ def _compatible_slot(users: List[int], avail: Dict[int, Dict[int, List[Tuple[int
                 return MatchSlot(weekday=d, start_min=best[0], end_min=best[1])
     return None
 
+
 def preview_plan(db: Session, params: MatchInput) -> MatchPlan:
     """
     Greedy bin-packing:
@@ -109,6 +110,15 @@ def preview_plan(db: Session, params: MatchInput) -> MatchPlan:
         else:
             leftovers.extend(cur)
 
+    debug = None
+    if params.diagnostics:
+        # Very light-weight, but helpful: show pool order and availability density
+        avail_counts = {u: sum(len(vd) for vd in byday.values()) for u, byday in avail.items()}
+        debug = {
+            "pool_order": sorted(params.user_ids),
+            "avail_intervals_per_user": avail_counts,
+        }
+
     return MatchPlan(
         groups=groups,
         leftovers=leftovers,
@@ -118,7 +128,9 @@ def preview_plan(db: Session, params: MatchInput) -> MatchPlan:
             "course_id": params.course_id if params.course_id is not None else 0,
             "allow_partial_last_group": params.allow_partial_last_group,
             "name_prefix": params.name_prefix or "Auto Group",
+            "diagnostics": params.diagnostics,
         },
+        debug=debug,
     )
 
 

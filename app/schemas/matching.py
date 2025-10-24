@@ -16,22 +16,10 @@ class MatchInput(BaseModel):
     group_size: int = Field(ge=2)
     min_overlap_minutes: int = Field(ge=1)
     course_id: Optional[int] = None
-    # NEW (optional) knobs:
+    # Optional knobs
     allow_partial_last_group: bool = False
     name_prefix: Optional[str] = None  # if None, service uses "Auto Group"
-
-class MatchCourseInput(BaseModel):
-    group_size: int = Field(ge=2)
-    min_overlap_minutes: int = Field(ge=1)
-    # NEW (optional) knobs mirrored for by-course
-    allow_partial_last_group: bool = False
-    name_prefix: Optional[str] = None
-
-class MatchPlan(BaseModel):
-    groups: List[MatchGroup]
-    leftovers: List[int]
-    # Keep a params dict for transparency / debugging
-    params: Dict[str, Any]
+    diagnostics: bool = False          # NEW: include debug info in response
 
 class MatchCourseInput(BaseModel):
     group_size: int = Field(ge=2)
@@ -39,4 +27,11 @@ class MatchCourseInput(BaseModel):
     allow_partial_last_group: bool = False
     name_prefix: Optional[str] = None
     skip_already_grouped: bool = True
-    
+    diagnostics: bool = False          # NEW
+
+class MatchPlan(BaseModel):
+    groups: List[MatchGroup]
+    leftovers: List[int]
+    # Keep a params dict for transparency / debugging
+    params: Dict[str, Any]
+    debug: Optional[Dict[str, Any]] = None  # NEW: optional diagnostics blob
