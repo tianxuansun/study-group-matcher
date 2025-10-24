@@ -32,7 +32,7 @@ def preview_by_course(course_id: int, payload: MatchCourseInput, db: Session = D
     if not user_ids:
         raise HTTPException(status_code=404, detail=f"No users enrolled in course {course_id}")
 
-    # NEW: optionally skip users already in a group for this course
+    # optionally skip users already in a group for this course
     if getattr(payload, "skip_already_grouped", True):
         taken = membership_crud.user_ids_in_course_groups(db, user_ids, course_id)
         user_ids = [u for u in user_ids if u not in taken]
@@ -44,6 +44,7 @@ def preview_by_course(course_id: int, payload: MatchCourseInput, db: Session = D
         course_id=course_id,
         allow_partial_last_group=payload.allow_partial_last_group,
         name_prefix=payload.name_prefix,
+        diagnostics=payload.diagnostics,   # NEW
     ))
     return plan
 
@@ -53,7 +54,6 @@ def apply_by_course(course_id: int, payload: MatchCourseInput, db: Session = Dep
     if not user_ids:
         raise HTTPException(status_code=404, detail=f"No users enrolled in course {course_id}")
 
-    # NEW: optionally skip users already in a group for this course
     if getattr(payload, "skip_already_grouped", True):
         taken = membership_crud.user_ids_in_course_groups(db, user_ids, course_id)
         user_ids = [u for u in user_ids if u not in taken]
@@ -65,6 +65,7 @@ def apply_by_course(course_id: int, payload: MatchCourseInput, db: Session = Dep
         course_id=course_id,
         allow_partial_last_group=payload.allow_partial_last_group,
         name_prefix=payload.name_prefix,
+        diagnostics=payload.diagnostics,   # NEW
     ))
     if not plan.groups:
         raise HTTPException(status_code=400, detail="No viable groups for given parameters.")

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from app.models.membership import Membership
 from app.models.user import User
 from app.models.group import Group
@@ -78,3 +78,14 @@ def user_ids_in_course_groups(db: Session, user_ids: list[int], course_id: int) 
         .where(Membership.user_id.in_(user_ids))
     )
     return set(db.scalars(stmt).all())
+def count(
+    db: Session,
+    user_id: int | None = None,
+    group_id: int | None = None,
+) -> int:
+    stmt = select(func.count()).select_from(Membership)
+    if user_id is not None:
+        stmt = stmt.where(Membership.user_id == user_id)
+    if group_id is not None:
+        stmt = stmt.where(Membership.group_id == group_id)
+    return db.scalar(stmt) or 0
