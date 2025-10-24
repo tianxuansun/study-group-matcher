@@ -7,9 +7,21 @@ from app.schemas.group import GroupCreate, GroupUpdate
 def get(db: Session, id: int) -> Group | None:
     return db.get(Group, id)
 
-def get_multi(db: Session, skip: int = 0, limit: int = 100) -> list[Group]:
-    stmt = select(Group).order_by(Group.id.asc()).offset(skip).limit(limit)
+def get_multi(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    name_prefix: str | None = None,
+    course_id: int | None = None,
+) -> list[Group]:
+    stmt = select(Group).order_by(Group.id.asc())
+    if name_prefix:
+        stmt = stmt.where(Group.name.like(f"{name_prefix}%"))
+    if course_id is not None:
+        stmt = stmt.where(Group.course_id == course_id)
+    stmt = stmt.offset(skip).limit(limit)
     return db.scalars(stmt).all()
+
 
 def create(db: Session, obj_in: GroupCreate) -> Group:
     if obj_in.course_id is not None:

@@ -13,9 +13,12 @@ router = APIRouter()
 def list_memberships(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    user_id: int | None = Query(None, ge=1),
+    group_id: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
 ):
-    return membership_crud.get_multi(db, skip=offset, limit=limit)
+    return membership_crud.get_multi(db, skip=offset, limit=limit, user_id=user_id, group_id=group_id)
+
 
 @router.post("/", response_model=MembershipRead, status_code=status.HTTP_201_CREATED)
 def create_membership(payload: MembershipCreate, db: Session = Depends(get_db)):

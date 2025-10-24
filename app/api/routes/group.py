@@ -13,9 +13,12 @@ router = APIRouter()
 def list_groups(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    name_prefix: str | None = Query(None, min_length=1),
+    course_id: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
 ):
-    return group_crud.get_multi(db, skip=offset, limit=limit)
+    return group_crud.get_multi(db, skip=offset, limit=limit, name_prefix=name_prefix, course_id=course_id)
+
 
 @router.post("/", response_model=GroupRead, status_code=status.HTTP_201_CREATED)
 def create_group(payload: GroupCreate, db: Session = Depends(get_db)):

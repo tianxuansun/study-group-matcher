@@ -32,3 +32,11 @@ class MatchPlan(BaseModel):
     leftovers: List[int]
     # Keep a params dict for transparency / debugging
     params: Dict[str, Any]
+
+class MatchCourseInput(BaseModel):
+    group_size: int = Field(ge=2)
+    min_overlap_minutes: int = Field(ge=1)
+    allow_partial_last_group: bool = False
+    name_prefix: Optional[str] = None
+    skip_already_grouped: bool = True
+    

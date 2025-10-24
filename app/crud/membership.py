@@ -8,14 +8,21 @@ from app.schemas.membership import MembershipCreate, MembershipUpdate
 def get(db: Session, id: int) -> Membership | None:
     return db.get(Membership, id)
 
-def get_multi(db: Session, skip: int = 0, limit: int = 50) -> list[Membership]:
-    stmt = (
-        select(Membership)
-        .order_by(Membership.id.desc())   # NEW: newest first so page 1 includes latest
-        .offset(skip)
-        .limit(limit)
-    )
+def get_multi(
+    db: Session,
+    skip: int = 0,
+    limit: int = 50,
+    user_id: int | None = None,
+    group_id: int | None = None,
+) -> list[Membership]:
+    stmt = select(Membership).order_by(Membership.id.desc())
+    if user_id is not None:
+        stmt = stmt.where(Membership.user_id == user_id)
+    if group_id is not None:
+        stmt = stmt.where(Membership.group_id == group_id)
+    stmt = stmt.offset(skip).limit(limit)
     return db.scalars(stmt).all()
+
 
 
 def get_by_user_group(db: Session, user_id: int, group_id: int) -> Membership | None:
@@ -59,3 +66,15 @@ def remove(db: Session, id: int) -> None:
     if obj:
         db.delete(obj)
         db.commit()
+
+def user_ids_in_course_groups(db: Session, user_ids: list[int], course_id: int) -> set[int]:
+    """Return the subset of user_ids that already belong to any group with this course_id."""
+    if not user_ids:
+        return set()
+    stmt = (
+        select(Membership.user_id)
+        .join(Group, Group.id == Membership.group_id)
+        .where(Group.course_id == course_id)
+        .where(Membership.user_id.in_(user_ids))
+    )
+    return set(db.scalars(stmt).all())

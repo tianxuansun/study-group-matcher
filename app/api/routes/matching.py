@@ -6,7 +6,7 @@ from app.api.deps import get_db
 from app.schemas.matching import MatchInput, MatchPlan, MatchCourseInput
 from app.services.matching import preview_plan, apply_plan
 from app.crud import enrollment as enrollment_crud
-
+from app.crud import membership as membership_crud
 router = APIRouter()
 
 @router.post("/preview/", response_model=MatchPlan, status_code=status.HTTP_200_OK)
@@ -31,6 +31,12 @@ def preview_by_course(course_id: int, payload: MatchCourseInput, db: Session = D
     user_ids = enrollment_crud.user_ids_for_course(db, course_id)
     if not user_ids:
         raise HTTPException(status_code=404, detail=f"No users enrolled in course {course_id}")
+
+    # NEW: optionally skip users already in a group for this course
+    if getattr(payload, "skip_already_grouped", True):
+        taken = membership_crud.user_ids_in_course_groups(db, user_ids, course_id)
+        user_ids = [u for u in user_ids if u not in taken]
+
     plan = preview_plan(db, MatchInput(
         user_ids=user_ids,
         group_size=payload.group_size,
@@ -46,6 +52,12 @@ def apply_by_course(course_id: int, payload: MatchCourseInput, db: Session = Dep
     user_ids = enrollment_crud.user_ids_for_course(db, course_id)
     if not user_ids:
         raise HTTPException(status_code=404, detail=f"No users enrolled in course {course_id}")
+
+    # NEW: optionally skip users already in a group for this course
+    if getattr(payload, "skip_already_grouped", True):
+        taken = membership_crud.user_ids_in_course_groups(db, user_ids, course_id)
+        user_ids = [u for u in user_ids if u not in taken]
+
     plan = preview_plan(db, MatchInput(
         user_ids=user_ids,
         group_size=payload.group_size,
