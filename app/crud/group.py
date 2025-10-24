@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.models.group import Group
 from app.models.course import Course
 from app.schemas.group import GroupCreate, GroupUpdate
@@ -50,3 +50,14 @@ def remove(db: Session, id: int) -> None:
     if obj:
         db.delete(obj)
         db.commit()
+def count(
+    db: Session,
+    name_prefix: str | None = None,
+    course_id: int | None = None,
+) -> int:
+    stmt = select(func.count()).select_from(Group)
+    if name_prefix:
+        stmt = stmt.where(Group.name.like(f"{name_prefix}%"))
+    if course_id is not None:
+        stmt = stmt.where(Group.course_id == course_id)
+    return db.scalar(stmt) or 0

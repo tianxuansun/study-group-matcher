@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, status, Query
+from fastapi import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -16,9 +17,12 @@ def list_groups(
     name_prefix: str | None = Query(None, min_length=1),
     course_id: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
+    response: Response = None,  # NEW
 ):
+    total = group_crud.count(db, name_prefix=name_prefix, course_id=course_id)
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
     return group_crud.get_multi(db, skip=offset, limit=limit, name_prefix=name_prefix, course_id=course_id)
-
 
 @router.post("/", response_model=GroupRead, status_code=status.HTTP_201_CREATED)
 def create_group(payload: GroupCreate, db: Session = Depends(get_db)):
