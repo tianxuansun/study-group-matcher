@@ -1,6 +1,6 @@
 # Study Group Matcher
 
-A clean, well-tested FastAPI microservice that forms small, stable study groups from student availability — with course enrollments, matching, stats, and CSV exports.
+A clean, well-tested FastAPI microservice that I built to form small, stable study groups from student availability — with course enrollments, matching, stats, and CSV exports.
 
 [![CI](https://github.com/tianxuansun/study-group-matcher/actions/workflows/ci.yml/badge.svg)](https://github.com/tianxuansun/study-group-matcher/actions)
 
@@ -21,7 +21,7 @@ A clean, well-tested FastAPI microservice that forms small, stable study groups 
 - **Python 3.10 • FastAPI • Pydantic v2 • SQLAlchemy 2.x**  
 - **SQLite** for local/dev (swap for Postgres in prod)  
 - **pytest + httpx (async)** for tests & coverage  
-- Optional: **Docker** image build
+- **Docker** image build
 
 ---
 
