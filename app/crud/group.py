@@ -27,7 +27,13 @@ def create(db: Session, obj_in: GroupCreate) -> Group:
     if obj_in.course_id is not None:
         if db.get(Course, obj_in.course_id) is None:
             raise ValueError("course_not_found")
-    obj = Group(name=obj_in.name, course_id=obj_in.course_id)
+    obj = Group(
+        name=obj_in.name,
+        course_id=obj_in.course_id,
+        meeting_weekday=getattr(obj_in, "meeting_weekday", None),
+        meeting_start_min=getattr(obj_in, "meeting_start_min", None),
+        meeting_end_min=getattr(obj_in, "meeting_end_min", None),
+    )
     db.add(obj)
     db.commit()
     db.refresh(obj)

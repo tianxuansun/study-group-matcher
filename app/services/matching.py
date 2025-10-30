@@ -7,6 +7,7 @@ from app.models.group import Group
 from app.schemas.matching import MatchInput, MatchPlan, MatchGroup, MatchSlot
 from app.crud import membership as membership_crud
 from app.crud import group as group_crud
+from app.schemas.group import GroupCreate
 
 def _load_availabilities(db: Session, user_ids: List[int]) -> Dict[int, Dict[int, List[Tuple[int,int]]]]:
     """
@@ -154,17 +155,29 @@ def apply_plan(
     course_id: Optional[int],
     name_prefix: Optional[str] = None,
 ) -> List[int]:
-    """
-    Creates Group + Memberships. Returns created group IDs.
-    """
     created_ids: List[int] = []
     base = name_prefix or plan.params.get("name_prefix") or "Auto Group"
 
     for mg in plan.groups:
-        # pick a unique name each time to satisfy UNIQUE(groups.name)
         name = _next_group_name(db, base=base)
-        grp = group_crud.create(db, obj_in=type("X",(object,),{"name": name, "course_id": course_id})())
+        slot = mg.slot  # has weekday/start_min/end_min
+
+        # NEW: create group with persisted meeting schedule
+        grp = group_crud.create(
+            db,
+            obj_in=GroupCreate(
+                name=name,
+                course_id=course_id,
+                meeting_weekday=slot.weekday,
+                meeting_start_min=slot.start_min,
+                meeting_end_min=slot.end_min,
+            ),
+        )
         created_ids.append(grp.id)
+
         for uid in mg.user_ids:
-            membership_crud.create(db, obj_in=type("Y",(object,),{"user_id": uid, "group_id": grp.id})())
+            membership_crud.create(
+                db,
+                obj_in=type("Y", (object,), {"user_id": uid, "group_id": grp.id})(),
+            )
     return created_ids

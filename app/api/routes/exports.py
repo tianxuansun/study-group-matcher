@@ -80,3 +80,100 @@ def export_group_roster_csv(group_id: int, db: Session = Depends(get_db)):
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="group_{group_id}_roster.csv"'},
     )
+from datetime import datetime
+from fastapi import HTTPException
+
+WEEKDAY_TO_BYDAY = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+
+def _hm_from_minutes(total: int) -> tuple[int, int]:
+    return total // 60, total % 60
+
+def _ics_header() -> list[str]:
+    return [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Study Group Matcher//EN",
+    ]
+
+def _ics_footer() -> list[str]:
+    return ["END:VCALENDAR"]
+
+def _vevent_for_group(g: Group) -> list[str]:
+    if g.meeting_weekday is None or g.meeting_start_min is None or g.meeting_end_min is None:
+        raise ValueError("group_has_no_schedule")
+
+    byday = WEEKDAY_TO_BYDAY[g.meeting_weekday]
+    start_h, start_m = _hm_from_minutes(g.meeting_start_min)
+    duration_min = int(g.meeting_end_min - g.meeting_start_min)
+    if duration_min <= 0:
+        raise ValueError("invalid_schedule_duration")
+
+    # Use a fixed DTSTART date (floating time) — calendar apps will still interpret RRULE weekly by day.
+    # If you prefer "next occurrence" logic we can add it later.
+    dtstart = f"20250101T{start_h:02d}{start_m:02d}00"
+
+    now = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    uid = f"group-{g.id}@sgm"
+
+    return [
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{now}",
+        f"SUMMARY:{g.name}",
+        f"DTSTART:{dtstart}",
+        f"RRULE:FREQ=WEEKLY;BYDAY={byday}",
+        f"DURATION:PT{duration_min}M",
+        "END:VEVENT",
+    ]
+
+@router.get("/groups/{group_id}/schedule.ics")
+def export_group_schedule_ics(group_id: int, db: Session = Depends(get_db)):
+    group = db.get(Group, group_id)
+    if not group:
+        not_found("Group not found.")
+
+    try:
+        vevent = _vevent_for_group(group)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    lines = _ics_header() + vevent + _ics_footer()
+    body = "\r\n".join(lines) + "\r\n"
+    return Response(
+        content=body,
+        media_type="text/calendar",
+        headers={"Content-Disposition": f'attachment; filename="group_{group_id}_schedule.ics"'},
+    )
+
+@router.get("/courses/{course_id}/schedules.ics")
+def export_course_schedules_ics(course_id: int, db: Session = Depends(get_db)):
+    course = db.get(Course, course_id)
+    if not course:
+        not_found("Course not found.")
+
+    # Pull all groups with schedules for this course
+    stmt = (
+        select(Group)
+        .where(Group.course_id == course_id)
+        .order_by(Group.id.asc())
+    )
+    groups = db.scalars(stmt).all()
+
+    vevents: list[str] = []
+    for g in groups:
+        try:
+            vevents += _vevent_for_group(g)
+        except ValueError:
+            # skip groups without schedules
+            continue
+
+    if not vevents:
+        raise HTTPException(status_code=404, detail="No scheduled groups for this course.")
+
+    lines = _ics_header() + vevents + _ics_footer()
+    body = "\r\n".join(lines) + "\r\n"
+    return Response(
+        content=body,
+        media_type="text/calendar",
+        headers={"Content-Disposition": f'attachment; filename="course_{course_id}_schedules.ics"'},
+    )
