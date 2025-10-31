@@ -7,13 +7,15 @@ from app.api.deps import get_db
 from app.api.errors import not_found, conflict
 from app.schemas.enrollment import EnrollmentCreate, EnrollmentRead
 from app.crud import enrollment as crud
+from app.api.deps import require_api_key
 
 router = APIRouter()
 
 def _bounded_limit(limit: int) -> int:
     return min(max(limit, 1), 100)
 
-@router.post("/", response_model=EnrollmentRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=EnrollmentRead, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_api_key)])
 def enroll(payload: EnrollmentCreate, db: Session = Depends(get_db)):
     try:
         obj = crud.create(db, payload.user_id, payload.course_id)
@@ -55,7 +57,8 @@ def list_enrollments(
     resp.headers["X-Total-Count"] = str(total)
     return resp
 
-@router.delete("/{user_id}/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}/{course_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_api_key)])
 def unenroll(user_id: int, course_id: int, db: Session = Depends(get_db)):
     ok = crud.remove(db, user_id, course_id)
     if not ok:

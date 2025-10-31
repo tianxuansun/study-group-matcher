@@ -7,6 +7,7 @@ from app.schemas.matching import MatchInput, MatchPlan, MatchCourseInput
 from app.services.matching import preview_plan, apply_plan
 from app.crud import enrollment as enrollment_crud
 from app.crud import membership as membership_crud
+from app.api.deps import require_api_key
 router = APIRouter()
 
 @router.post("/preview/", response_model=MatchPlan, status_code=status.HTTP_200_OK)
@@ -15,7 +16,8 @@ def preview(payload: MatchInput, db: Session = Depends(get_db)):
     plan = preview_plan(db, payload)
     return plan
 
-@router.post("/apply/", response_model=MatchPlan, status_code=status.HTTP_201_CREATED)
+@router.post("/apply/", response_model=MatchPlan, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_api_key)])
 def apply(payload: MatchInput, db: Session = Depends(get_db)):
     # compute first
     plan = preview_plan(db, payload)
@@ -48,7 +50,8 @@ def preview_by_course(course_id: int, payload: MatchCourseInput, db: Session = D
     ))
     return plan
 
-@router.post("/apply/by-course/{course_id}/", response_model=MatchPlan, status_code=status.HTTP_201_CREATED)
+@router.post("/apply/by-course/{course_id}/", response_model=MatchPlan, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_api_key)])
 def apply_by_course(course_id: int, payload: MatchCourseInput, db: Session = Depends(get_db)):
     user_ids = enrollment_crud.user_ids_for_course(db, course_id)
     if not user_ids:

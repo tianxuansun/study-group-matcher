@@ -1,23 +1,12 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-echo "📦 Container starting for: ${APP_NAME:-Study Group Matcher}"
+# Respect DATABASE_URL if provided (Dockerfile sets a default)
+: "${DATABASE_URL:=sqlite:////data/dev.db}"
+export DATABASE_URL
 
-# Ensure /data exists (volume mount)
-mkdir -p /data
+# Run migrations before starting the API
+alembic upgrade head || { echo "Alembic migration failed"; exit 1; }
 
-# Print DB URL for sanity
-echo "Using DATABASE_URL=${DATABASE_URL}"
-
-# Initialize DB schema
-echo "🔧 Initializing DB schema..."
-python -m app.db.init_db
-
-# Optional seeding
-if [ "${SEED}" = "1" ]; then
-  echo "🌱 Seeding demo data..."
-  python -m scripts.seed || true
-fi
-
-echo "🚀 Starting API..."
-exec python -m uvicorn app.main:app --host "${HOST:-0.0.0.0}" --port "${PORT:-8000}"
+# Start FastAPI
+exec uvicorn app.main:app --host "${HOST:-0.0.0.0}" --port "${PORT:-8000}"

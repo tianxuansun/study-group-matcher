@@ -6,6 +6,7 @@ from app.api.deps import get_db
 from app.api.errors import conflict, not_found
 from app.schemas.user import UserCreate, UserUpdate, UserRead
 from app.crud import user as user_crud
+from app.api.deps import require_api_key
 
 router = APIRouter()
 
@@ -18,7 +19,8 @@ def list_users(
     return user_crud.get_multi(db, skip=offset, limit=limit)
 
 
-@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_api_key)])
 def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     try:
         return user_crud.create(db, payload)
@@ -34,14 +36,16 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         not_found("User not found.")
     return obj
 
-@router.patch("/{user_id}", response_model=UserRead)
+@router.patch("/{user_id}", response_model=UserRead,
+              dependencies=[Depends(require_api_key)])
 def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)):
     obj = user_crud.get(db, user_id)  # positional
     if not obj:
         not_found("User not found.")
     return user_crud.update(db, db_obj=obj, obj_in=payload)
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_api_key)])
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     obj = user_crud.get(db, user_id)  # positional
     if not obj:

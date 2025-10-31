@@ -7,6 +7,7 @@ from app.api.deps import get_db
 from app.api.errors import not_found, conflict
 from app.schemas.membership import MembershipCreate, MembershipUpdate, MembershipRead
 from app.crud import membership as membership_crud
+from app.api.deps import require_api_key
 
 router = APIRouter()
 
@@ -24,7 +25,8 @@ def list_memberships(
         response.headers["X-Total-Count"] = str(total)
     return membership_crud.get_multi(db, skip=offset, limit=limit, user_id=user_id, group_id=group_id)
     
-@router.post("/", response_model=MembershipRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=MembershipRead, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_api_key)])
 def create_membership(payload: MembershipCreate, db: Session = Depends(get_db)):
     try:
         return membership_crud.create(db, payload)
@@ -45,7 +47,8 @@ def get_membership(membership_id: int, db: Session = Depends(get_db)):
         not_found("Membership not found.")
     return obj
 
-@router.patch("/{membership_id}", response_model=MembershipRead)
+@router.patch("/{membership_id}", response_model=MembershipRead,
+              dependencies=[Depends(require_api_key)])
 def update_membership(membership_id: int, payload: MembershipUpdate, db: Session = Depends(get_db)):
     obj = membership_crud.get(db, membership_id)
     if not obj:
@@ -62,7 +65,8 @@ def update_membership(membership_id: int, payload: MembershipUpdate, db: Session
             conflict("Membership already exists.")
         raise
 
-@router.delete("/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{membership_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_api_key)])
 def delete_membership(membership_id: int, db: Session = Depends(get_db)):
     obj = membership_crud.get(db, membership_id)
     if not obj:

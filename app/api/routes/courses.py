@@ -6,6 +6,7 @@ from app.api.deps import get_db
 from app.api.errors import conflict, not_found
 from app.schemas.course import CourseCreate, CourseUpdate, CourseRead
 from app.crud import course as course_crud
+from app.api.deps import require_api_key
 
 router = APIRouter()
 
@@ -17,7 +18,8 @@ def list_courses(
 ):
     return course_crud.get_multi(db, skip=offset, limit=limit)
 
-@router.post("/", response_model=CourseRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=CourseRead, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_api_key)])
 def create_course(payload: CourseCreate, db: Session = Depends(get_db)):
     try:
         return course_crud.create(db, payload)
@@ -33,7 +35,8 @@ def get_course(course_id: int, db: Session = Depends(get_db)):
         not_found("Course not found.")
     return obj
 
-@router.patch("/{course_id}", response_model=CourseRead)
+@router.patch("/{course_id}", response_model=CourseRead,
+              dependencies=[Depends(require_api_key)])
 def update_course(course_id: int, payload: CourseUpdate, db: Session = Depends(get_db)):
     obj = course_crud.get(db, course_id)  # positional
     if not obj:
