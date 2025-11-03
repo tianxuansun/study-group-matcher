@@ -15,14 +15,16 @@ jobs:
     permissions:
       contents: read
       id-token: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ secrets.AWS_REGION }}
+          # Prefer repo variable, fall back to secret, then default
+          aws-region: ${{ vars.AWS_REGION || secrets.AWS_REGION || 'us-east-1' }}
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: sgm-deploy
 
@@ -33,9 +35,12 @@ jobs:
       - name: Build, tag, and push image
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          ECR_REPO: ${{ secrets.ECR_REPO }} # e.g., sgm-api
+          ECR_REPO: ${{ secrets.ECR_REPO }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          if [ -z "$ECR_REPO" ]; then
+            echo "ECR_REPO secret not set"; exit 1
+          fi
           docker build -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
           docker tag $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:latest
@@ -61,15 +66,18 @@ jobs:
                   "logDriver": "awslogs",
                   "options": {
                     "awslogs-group": "/ecs/${{ secrets.PROJECT_NAME }}-api",
-                    "awslogs-region": "${{ secrets.AWS_REGION }}",
+                    "awslogs-region": "${{ vars.AWS_REGION || secrets.AWS_REGION || 'us-east-1' }}",
                     "awslogs-stream-prefix": "ecs"
                   }
                 },
                 "environment": [
                   {"name": "HOST", "value": "0.0.0.0"},
                   {"name": "PORT", "value": "8000"},
-                  {"name": "APP_NAME", "value": "Study Group Matcher"},
-                  {"name": "DATABASE_URL", "value": "${{ secrets.DATABASE_URL }}"}
+                  {"name": "APP_NAME", "value": "Study Group Matcher"}
+                  /* NOTE: omit DATABASE_URL here if you haven't set the secret yet.
+                     The image already sets a default sqlite path. Uncomment below
+                     only after adding the secret:
+                     ,{"name": "DATABASE_URL", "value": "${{ secrets.DATABASE_URL }}"} */
                 ]
               }]
             }
