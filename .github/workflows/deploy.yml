@@ -16,6 +16,11 @@ jobs:
       contents: read
       id-token: write
 
+    # keep region & project name in one place
+    env:
+      AWS_REGION: us-east-2
+      PROJECT_NAME: sgm
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,8 +28,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # Prefer repo variable, fall back to secret, then default
-          aws-region: ${{ vars.AWS_REGION || secrets.AWS_REGION || 'us-east-1' }}
+          aws-region: ${{ env.AWS_REGION }}              # <- hardcoded above to avoid empty input
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: sgm-deploy
 
@@ -35,52 +39,51 @@ jobs:
       - name: Build, tag, and push image
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          ECR_REPO: ${{ secrets.ECR_REPO }}
+          ECR_REPO: ${{ secrets.ECR_REPO }}              # e.g., sgm-api
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          if [ -z "$ECR_REPO" ]; then
-            echo "ECR_REPO secret not set"; exit 1
-          fi
+          test -n "$ECR_REPO" || { echo "ECR_REPO secret not set"; exit 1; }
           docker build -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:latest
+          docker tag  $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:latest
           docker push $ECR_REGISTRY/$ECR_REPO:latest
+
+      - name: Write taskdef.json
+        run: |
+          cat > taskdef.json <<'JSON'
+          {
+            "family": "${{ secrets.ECS_TASK_FAMILY }}",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "256",
+            "memory": "512",
+            "executionRoleArn": "${{ secrets.ECS_TASK_EXEC_ROLE_ARN }}",
+            "containerDefinitions": [{
+              "name": "api",
+              "image": "${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPO }}:${{ github.sha }}",
+              "essential": true,
+              "portMappings": [{ "containerPort": 8000, "protocol": "tcp" }],
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "/ecs/${{ env.PROJECT_NAME }}-api",
+                  "awslogs-region": "${{ env.AWS_REGION }}",
+                  "awslogs-stream-prefix": "ecs"
+                }
+              },
+              "environment": [
+                { "name": "HOST", "value": "0.0.0.0" },
+                { "name": "PORT", "value": "8000" },
+                { "name": "APP_NAME", "value": "Study Group Matcher" }
+              ]
+            }]
+          }
+          JSON
 
       - name: Deploy ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: |
-            {
-              "family": "${{ secrets.ECS_TASK_FAMILY }}",
-              "networkMode": "awsvpc",
-              "requiresCompatibilities": ["FARGATE"],
-              "cpu": "256",
-              "memory": "512",
-              "executionRoleArn": "${{ secrets.ECS_TASK_EXEC_ROLE_ARN }}",
-              "containerDefinitions": [{
-                "name": "api",
-                "image": "${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPO }}:${{ github.sha }}",
-                "essential": true,
-                "portMappings": [{"containerPort": 8000, "hostPort": 8000, "protocol": "tcp"}],
-                "logConfiguration": {
-                  "logDriver": "awslogs",
-                  "options": {
-                    "awslogs-group": "/ecs/${{ secrets.PROJECT_NAME }}-api",
-                    "awslogs-region": "${{ vars.AWS_REGION || secrets.AWS_REGION || 'us-east-2' }}",
-                    "awslogs-stream-prefix": "ecs"
-                  }
-                },
-                "environment": [
-                  {"name": "HOST", "value": "0.0.0.0"},
-                  {"name": "PORT", "value": "8000"},
-                  {"name": "APP_NAME", "value": "Study Group Matcher"}
-                  /* NOTE: omit DATABASE_URL here if you haven't set the secret yet.
-                     The image already sets a default sqlite path. Uncomment below
-                     only after adding the secret:
-                     ,{"name": "DATABASE_URL", "value": "${{ secrets.DATABASE_URL }}"} */
-                ]
-              }]
-            }
+          task-definition: taskdef.json
           service: ${{ secrets.ECS_SERVICE_NAME }}
           cluster: ${{ secrets.ECS_CLUSTER_NAME }}
           wait-for-service-stability: true
