@@ -5,3 +5,27 @@ __pycache__/
 .dev.db
 dev.db
 .coverage
+# Local env
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+
+# Docker / data
+data/
+sgm_data/
+
+# AWS CLI / local artifacts
+awscliv2.zip
+aws/
+
+# Terraform local state & vars
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+infra/terraform/terraform.tfstate*
+infra/terraform/*.tfvars

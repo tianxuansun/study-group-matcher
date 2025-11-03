@@ -33,3 +33,9 @@ cd study-group-matcher
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+## Deploy
+
+- **Infra**: ECS Fargate + ALB + RDS (Terraform in `infra/terraform/`), logs & metrics in CloudWatch, alarms for ALB 5xx and p95 latency.
+- **CI**: Tests on PR/merge (`ci.yml`).
+- **CD**: Build & push to ECR, deploy to ECS on push to `main` (`deploy.yml`).
+- **ADR**: [docs/adr/0001-deploy-choice.md](docs/adr/0001-deploy-choice.md)
