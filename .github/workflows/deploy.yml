@@ -66,7 +66,7 @@ jobs:
                   "logDriver": "awslogs",
                   "options": {
                     "awslogs-group": "/ecs/${{ secrets.PROJECT_NAME }}-api",
-                    "awslogs-region": "${{ vars.AWS_REGION || secrets.AWS_REGION || 'us-east-1' }}",
+                    "awslogs-region": "${{ vars.AWS_REGION || secrets.AWS_REGION || 'us-east-2' }}",
                     "awslogs-stream-prefix": "ecs"
                   }
                 },
