@@ -1,13 +1,7 @@
 name: Deploy
 
 on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - "app/**"
-      - "Dockerfile"
-      - "requirements.txt"
-      - ".github/workflows/deploy.yml"
+  workflow_dispatch:  # <-- only runs when you click "Run workflow" in GitHub UI
 
 jobs:
   deploy:
@@ -16,7 +10,6 @@ jobs:
       contents: read
       id-token: write
 
-    # keep region & project name in one place
     env:
       AWS_REGION: us-east-2
       PROJECT_NAME: sgm
@@ -28,7 +21,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ env.AWS_REGION }}              # <- hardcoded above to avoid empty input
+          aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-session-name: sgm-deploy
 
@@ -39,7 +32,7 @@ jobs:
       - name: Build, tag, and push image
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          ECR_REPO: ${{ secrets.ECR_REPO }}              # e.g., sgm-api
+          ECR_REPO: ${{ secrets.ECR_REPO }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           test -n "$ECR_REPO" || { echo "ECR_REPO secret not set"; exit 1; }
